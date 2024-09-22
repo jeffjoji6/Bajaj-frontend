@@ -7,30 +7,34 @@ function App() {
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState([]);
-  const [file, setFile] = useState(null);
+  const [file, setFile] = useState(null); // State for the selected file
+
+  // File details from backend response
+  const [fileDetails, setFileDetails] = useState({
+    valid: null,
+    mimeType: "",
+    size: 0,
+  });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      let jsonInput;
-
-      if (file) {
-        const fileContent = await file.text();
-        jsonInput = JSON.parse(fileContent);
-      } else {
-        jsonInput = JSON.parse(input);
-      }
-
+      const jsonInput = JSON.parse(input);
       if (!jsonInput.data) {
         throw new Error("Invalid JSON input");
       }
 
-      const res = await fetch("https://bajaj-backend-ejvk.onrender.com/bfhl", {
+      // Create FormData to send both the file and the JSON data
+      const formData = new FormData();
+      formData.append("data", JSON.stringify(jsonInput)); // Append JSON input as a string
+      if (file) {
+        formData.append("file", file); // Append the selected file
+      }
+
+      // Send the request as multipart/form-data
+      const res = await fetch("https://bajaj-backend-1dff.onrender.com/bfhl", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(jsonInput),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -40,6 +44,13 @@ function App() {
       const data = await res.json();
       setResponse(data);
       setError(null);
+
+      // Extract file details from backend response
+      setFileDetails({
+        valid: data.file_valid,
+        mimeType: data.file_mime_type,
+        size: data.file_size_kb,
+      });
     } catch (err) {
       setError(err.message);
       setResponse(null);
@@ -56,7 +67,10 @@ function App() {
   };
 
   const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
+    const selectedFile = event.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile); // Set the selected file
+    }
   };
 
   return (
@@ -71,18 +85,11 @@ function App() {
             placeholder='Enter JSON input, e.g., { "data": ["A", "C", "z"] }'
             rows="4"
           />
-          <div className="flex">
-            <label htmlFor="fileUpload" className="w-44 mb-2">
-              Or Upload File
-            </label>
-            <input
-              id="fileUpload"
-              type="file"
-              accept=""
-              onChange={handleFileChange}
-              className="block w-full"
-            />
-          </div>
+          <input
+            type="file"
+            onChange={handleFileChange}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none"
+          />
           <button
             type="submit"
             className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-200"
@@ -90,9 +97,24 @@ function App() {
             Submit
           </button>
         </form>
-        {error && <p className="text-red-500 mt-4">{error}</p>}
+
+        {/* Display file details after receiving the response */}
         {response && (
           <div className="mt-6">
+            <h2 className="text-xl font-bold mb-2">File Details</h2>
+            <div className="bg-gray-200 p-4 rounded-lg mb-4">
+              <p>
+                <strong>File Valid:</strong> {fileDetails.valid ? "Yes" : "No"}
+              </p>
+              <p>
+                <strong>File MIME Type:</strong> {fileDetails.mimeType || "N/A"}
+              </p>
+              <p>
+                <strong>File Size (KB):</strong> {fileDetails.size || "N/A"}
+              </p>
+            </div>
+
+            {/* Checkbox options */}
             <div className="flex gap-2 flex-wrap mb-4">
               <label className="inline-flex items-center">
                 <input
@@ -117,12 +139,14 @@ function App() {
               <label className="inline-flex items-center">
                 <input
                   type="checkbox"
-                  value="highest_alphabet"
-                  checked={selectedOptions.includes("highest_alphabet")}
+                  value="highest_lowercase_alphabet"
+                  checked={selectedOptions.includes(
+                    "highest_lowercase_alphabet"
+                  )}
                   onChange={handleOptionChange}
                   className="form-checkbox"
                 />
-                <span className="ml-2">Highest Alphabet</span>
+                <span className="ml-2">Highest Lowercase Alphabet</span>
               </label>
             </div>
             <ResponseDisplay
@@ -131,6 +155,8 @@ function App() {
             />
           </div>
         )}
+
+        {error && <p className="text-red-500 mt-4">{error}</p>}
       </header>
     </div>
   );
